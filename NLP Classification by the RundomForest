@@ -1,0 +1,58 @@
+import glob
+import random
+from sklearn.model_selection import train_test_split
+from janome.tokenizer import Tokenizer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.ensemble import RandomForestClassifier
+
+# Fix the random number / 乱数の固定
+random.seed(0)
+
+def load_livedoor_news_corpus():
+# Read the LivedoorNews and classify it / livedoor newsの読み込みと分類
+    category = {
+        "dokujo-tsushin": 1,
+        "it-life-hack":2,
+        "kaden-channel": 3
+    }
+    texts  = []
+    labels = []
+
+    for name, label in category.items():
+        files = glob.glob("./text/{name}/{name}*.txt".format(name=name))
+
+        text = ""
+        for file in files[:15]:#Because of increasing the processing speed, read the limited numbers. / 実行時間の関係上、読み込むファイルを制限しています。
+            with open(file, "r", encoding="utf-8") as f:
+                lines = f.read().splitlines() 
+                text = "".join(lines[2:])
+
+            texts.append(text)
+            labels.append(label)
+
+    return texts, labels
+
+texts, labels = load_livedoor_news_corpus()
+
+# Dividing the data into two categories(the training one and the tesing one) / データを訓練データと検証データに分割
+train_data, test_data, train_labels, test_labels = train_test_split(texts, labels, test_size=0.2, random_state=0)
+
+# Making a function of dividing the text. / テキストを分割する関数
+t=Tokenizer()
+tokenize = lambda doc : t.tokenize(doc, wakati=True)
+
+
+# Vectorizing the two data (traing and testing) by tf-idf./ tf-idfで訓練データと検証データをベクトル化
+vectorizer = TfidfVectorizer(tokenizer=tokenize)
+train_vec = vectorizer.fit_transform(train_data)
+test_vec = vectorizer.transform(test_data)
+
+# Make the RandomForest learn it. / ランダムフォレストで学習
+rf = RandomForestClassifier(n_estimators=100)
+rf.fit(train_vec, train_labels)
+
+# Print the accuracy. / 精度の出力
+print(rf.score(train_vec, train_labels))
+print(rf.score(test_vec, test_labels))
+
